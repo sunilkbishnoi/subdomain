@@ -1,0 +1,34 @@
+{
+  "rewrites": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "project2.sunilbishnoi.in"
+        }
+      ],
+      "destination": "/pass_analyzer.html"
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "project3.sunilbishnoi.in"
+        }
+      ],
+      "destination": "/3.html"
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "project4.sunilbishnoi.in"
+        }
+      ],
+      "destination": "/4.html"
+    }
+  ]
+}
