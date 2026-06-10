@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PassGuard — Password Strength Analyzer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital@0;1&display=swap');
+
+  :root {
+    --bg: #0e0e16;
+    --card: #14141f;
+    --border: #232336;
+    --accent: #7c3aed;
+    --glow: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --weak: #ef4444;
+    --fair: #f97316;
+    --good: #eab308;
+    --strong: #22c55e;
+    --vstrong: #06b6d4;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Space Grotesk',sans-serif;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:60px 20px; }
+
+  .hero-label { font-family:'Space Mono',monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--glow); margin-bottom:20px; }
+  h1 { font-size:clamp(2rem,5vw,3.2rem); font-weight:700; text-align:center; margin-bottom:12px;
+    background:linear-gradient(135deg,#c4b5fd,#7c3aed,#4f46e5); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .sub { color:var(--muted); text-align:center; max-width:480px; font-size:.95rem; line-height:1.6; margin-bottom:50px; }
+
+  .card { width:100%; max-width:580px; background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:36px; margin-bottom:24px; }
+
+  .input-wrap { position:relative; margin-bottom:24px; }
+  .input-wrap input {
+    width:100%; background:#0a0a14; border:2px solid var(--border); border-radius:10px;
+    padding:16px 52px 16px 20px; font-family:'Space Mono',monospace; font-size:1.05rem;
+    color:var(--text); outline:none; transition:border-color .3s, box-shadow .3s; letter-spacing:.1em;
+  }
+  .input-wrap input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(124,58,237,.2); }
+  .toggle-vis { position:absolute; right:16px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; color:var(--muted); padding:4px; font-size:1.1rem; }
+  .toggle-vis:hover { color:var(--glow); }
+
+  /* strength meter */
+  .meter-label { display:flex; justify-content:space-between; margin-bottom:8px; font-size:.8rem; }
+  .meter-label span:first-child { color:var(--muted); text-transform:uppercase; letter-spacing:.1em; font-size:.7rem; }
+  .meter-label .strength-text { font-weight:600; font-family:'Space Mono',monospace; transition:color .3s; }
+  .meter-bar { height:8px; background:#1a1a2e; border-radius:4px; overflow:hidden; margin-bottom:24px; }
+  .meter-fill { height:100%; border-radius:4px; width:0%; transition:width .5s cubic-bezier(.34,1.56,.64,1), background .4s; }
+
+  /* checks grid */
+  .checks { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:28px; }
+  .check { display:flex; align-items:center; gap:10px; font-size:.83rem; padding:10px 14px;
+    background:#0a0a14; border-radius:8px; border:1px solid var(--border); transition:.3s; }
+  .check.pass { border-color:rgba(34,197,94,.3); background:rgba(34,197,94,.05); }
+  .check.fail { border-color:var(--border); }
+  .check-icon { width:20px; height:20px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-size:.7rem; flex-shrink:0; background:var(--border); transition:.3s; }
+  .check.pass .check-icon { background:rgba(34,197,94,.2); color:#22c55e; }
+  .check.fail .check-icon { color:var(--muted); }
+
+  /* crack time */
+  .crack { background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(79,70,229,.08));
+    border:1px solid rgba(124,58,237,.3); border-radius:10px; padding:18px 20px;
+    display:flex; justify-content:space-between; align-items:center; }
+  .crack-label { font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin-bottom:4px; }
+  .crack-time { font-family:'Space Mono',monospace; font-size:1.3rem; font-weight:700; color:var(--glow); }
+  .crack-method { font-size:.73rem; color:var(--muted); font-family:'Space Mono',monospace; }
+
+  /* entropy */
+  .entropy-row { display:flex; gap:16px; margin-top:20px; }
+  .ent-box { flex:1; background:#0a0a14; border:1px solid var(--border); border-radius:8px; padding:14px; text-align:center; }
+  .ent-val { font-family:'Space Mono',monospace; font-size:1.3rem; font-weight:700; color:var(--glow); }
+  .ent-lbl { font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-top:4px; }
+
+  /* tips */
+  .tips-card { width:100%; max-width:580px; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px 36px; }
+  .tips-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted); margin-bottom:16px; }
+  .tip { display:flex; gap:12px; margin-bottom:12px; font-size:.85rem; color:var(--muted); line-height:1.5; }
+  .tip-bullet { color:var(--glow); font-weight:700; flex-shrink:0; margin-top:1px; }
+  .tip.active { color:var(--text); }
+
+  /* suggestion */
+  .gen-btn { width:100%; padding:14px; background:linear-gradient(135deg,#7c3aed,#4f46e5);
+    border:none; border-radius:10px; color:#fff; font-family:'Space Grotesk',sans-serif;
+    font-size:.9rem; font-weight:600; cursor:pointer; letter-spacing:.05em; margin-top:20px;
+    transition:.2s; }
+  .gen-btn:hover { opacity:.85; transform:translateY(-1px); }
+  .gen-btn:active { transform:translateY(0); }
+  .gen-output { margin-top:14px; padding:14px 16px; background:#0a0a14; border:1px solid var(--border);
+    border-radius:8px; font-family:'Space Mono',monospace; font-size:.9rem; color:var(--glow);
+    min-height:50px; word-break:break-all; display:none; }
+
+  @media(max-width:480px){ .checks{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="hero-label">Security Tool</div>
+<h1>Password Strength Analyzer</h1>
+<p class="sub">Instantly evaluate how secure your password is — entropy, crack time, and actionable guidance.</p>
+
+<div class="card">
+  <div class="input-wrap">
+    <input type="password" id="pwInput" placeholder="Type your password here…" autocomplete="off" spellcheck="false">
+    <button class="toggle-vis" id="toggleVis" title="Show/hide password">👁</button>
+  </div>
+
+  <div class="meter-label">
+    <span>Strength</span>
+    <span class="strength-text" id="strengthText" style="color:var(--muted)">—</span>
+  </div>
+  <div class="meter-bar"><div class="meter-fill" id="meterFill"></div></div>
+
+  <div class="checks" id="checks">
+    <div class="check fail" id="c-len"><div class="check-icon">✓</div><span>12+ characters</span></div>
+    <div class="check fail" id="c-up"><div class="check-icon">✓</div><span>Uppercase letter</span></div>
+    <div class="check fail" id="c-low"><div class="check-icon">✓</div><span>Lowercase letter</span></div>
+    <div class="check fail" id="c-num"><div class="check-icon">✓</div><span>Number (0–9)</span></div>
+    <div class="check fail" id="c-sym"><div class="check-icon">✓</div><span>Symbol (!@#…)</span></div>
+    <div class="check fail" id="c-dict"><div class="check-icon">✓</div><span>No common words</span></div>
+  </div>
+
+  <div class="crack">
+    <div>
+      <div class="crack-label">Estimated crack time</div>
+      <div class="crack-time" id="crackTime">—</div>
+    </div>
+    <div style="text-align:right">
+      <div class="crack-label">Attack model</div>
+      <div class="crack-method">GPU cluster · 10B/s</div>
+    </div>
+  </div>
+
+  <div class="entropy-row">
+    <div class="ent-box"><div class="ent-val" id="entropyVal">—</div><div class="ent-lbl">Entropy (bits)</div></div>
+    <div class="ent-box"><div class="ent-val" id="charsetVal">—</div><div class="ent-lbl">Charset size</div></div>
+    <div class="ent-box"><div class="ent-val" id="lenVal">—</div><div class="ent-lbl">Length</div></div>
+  </div>
+</div>
+
+<div class="tips-card">
+  <div class="tips-title">Improvement Tips</div>
+  <div class="tip" id="tip1"><span class="tip-bullet">→</span><span>Use at least 12 characters — length is the single biggest factor in password security.</span></div>
+  <div class="tip" id="tip2"><span class="tip-bullet">→</span><span>Mix uppercase letters, numbers, and symbols to expand your charset significantly.</span></div>
+  <div class="tip" id="tip3"><span class="tip-bullet">→</span><span>Avoid dictionary words or predictable patterns like "Password1!" even with substitutions.</span></div>
+  <div class="tip" id="tip4"><span class="tip-bullet">→</span><span>Consider a passphrase — four random words joined together are both memorable and strong.</span></div>
+  <div class="tip" id="tip5"><span class="tip-bullet">→</span><span>Never reuse passwords across sites. Use a password manager to store unique credentials.</span></div>
+
+  <button class="gen-btn" id="genBtn">⚡ Generate a strong password for me</button>
+  <div class="gen-output" id="genOutput"></div>
+</div>
+
+<script>
+  const input = document.getElementById('pwInput');
+  const fill  = document.getElementById('meterFill');
+  const sText = document.getElementById('strengthText');
+  const crack = document.getElementById('crackTime');
+  const entV  = document.getElementById('entropyVal');
+  const csV   = document.getElementById('charsetVal');
+  const lenV  = document.getElementById('lenVal');
+  const toggleVis = document.getElementById('toggleVis');
+  const genBtn = document.getElementById('genBtn');
+  const genOut = document.getElementById('genOutput');
+
+  const COMMON = ['password','123456','qwerty','letmein','admin','welcome','monkey','dragon','master','login','test','abc'];
+
+  function charsetSize(pw){
+    let s=0;
+    if(/[a-z]/.test(pw)) s+=26;
+    if(/[A-Z]/.test(pw)) s+=26;
+    if(/[0-9]/.test(pw)) s+=10;
+    if(/[^a-zA-Z0-9]/.test(pw)) s+=32;
+    return s||1;
+  }
+
+  function entropy(pw){ return pw.length * Math.log2(charsetSize(pw)); }
+
+  function crackTime(ent){
+    const ops = 1e10; // 10B per second
+    const secs = Math.pow(2, ent) / ops;
+    if(secs < 60) return '< 1 minute';
+    if(secs < 3600) return Math.round(secs/60) + ' minutes';
+    if(secs < 86400) return Math.round(secs/3600) + ' hours';
+    if(secs < 2592000) return Math.round(secs/86400) + ' days';
+    if(secs < 31536000) return Math.round(secs/2592000) + ' months';
+    if(secs < 3153600000) return Math.round(secs/31536000) + ' years';
+    if(secs < 3.15e13) return Math.round(secs/3.15e9) + 'k years';
+    return 'Centuries+';
+  }
+
+  function hasDict(pw){
+    const lower = pw.toLowerCase();
+    return COMMON.some(w => lower.includes(w));
+  }
+
+  function setCheck(id, pass){
+    const el = document.getElementById(id);
+    if(pass){ el.classList.add('pass'); el.classList.remove('fail'); }
+    else { el.classList.remove('pass'); el.classList.add('fail'); }
+  }
+
+  function analyze(){
+    const pw = input.value;
+    if(!pw){ fill.style.width='0%'; sText.textContent='—'; sText.style.color='var(--muted)';
+      crack.textContent='—'; entV.textContent='—'; csV.textContent='—'; lenV.textContent='—';
+      ['c-len','c-up','c-low','c-num','c-sym','c-dict'].forEach(id=>setCheck(id,false)); return; }
+
+    const hasLen  = pw.length >= 12;
+    const hasUp   = /[A-Z]/.test(pw);
+    const hasLow  = /[a-z]/.test(pw);
+    const hasNum  = /[0-9]/.test(pw);
+    const hasSym  = /[^a-zA-Z0-9]/.test(pw);
+    const noDict  = !hasDict(pw);
+    setCheck('c-len', hasLen); setCheck('c-up', hasUp); setCheck('c-low', hasLow);
+    setCheck('c-num', hasNum); setCheck('c-sym', hasSym); setCheck('c-dict', noDict);
+
+    const score = [hasLen,hasUp,hasLow,hasNum,hasSym,noDict].filter(Boolean).length;
+    const ent = entropy(pw);
+    const cs = charsetSize(pw);
+
+    entV.textContent = Math.round(ent);
+    csV.textContent = cs;
+    lenV.textContent = pw.length;
+    crack.textContent = crackTime(ent);
+
+    const pct = Math.min(100, score/6*100);
+    fill.style.width = pct+'%';
+    const levels = ['Weak','Weak','Fair','Good','Strong','Strong','Excellent'];
+    const colors = [,'var(--weak)','var(--weak)','var(--fair)','var(--good)','var(--strong)','var(--vstrong)'];
+    sText.textContent = levels[score] || 'Weak';
+    sText.style.color = colors[score] || 'var(--weak)';
+    fill.style.background = colors[score] || 'var(--weak)';
+  }
+
+  input.addEventListener('input', analyze);
+
+  toggleVis.addEventListener('click',()=>{
+    input.type = input.type==='password' ? 'text' : 'password';
+  });
+
+  genBtn.addEventListener('click',()=>{
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:,.<>?';
+    let pw=''; const arr = new Uint8Array(20);
+    crypto.getRandomValues(arr);
+    arr.forEach(b => pw += chars[b % chars.length]);
+    genOut.style.display='block';
+    genOut.textContent = pw;
+    input.value = pw;
+    input.type='text';
+    analyze();
+  });
+</script>
+</body>
+</html>
